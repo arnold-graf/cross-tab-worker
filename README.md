@@ -15,7 +15,7 @@ Exactly one tab owns the real Worker at a time (the **leader**). All other tabs 
 ## Usage
 
 ```ts
-import { CrossTabWorker } from 'cross-tab-worker';
+import { CrossTabWorker } from '@arni/cross-tab-worker';
 
 const worker = new CrossTabWorker(
   'my-db-worker',                              // stable name — used as the lock key
@@ -34,7 +34,7 @@ worker.postMessage({ op: 'write', buf: buffer }, [buffer]);
 ## API
 
 ```ts
-new CrossTabWorker(name, factory, options?)
+new CrossTabWorker(name, factory)
 ```
 
 | Parameter | Type | Description |
@@ -51,7 +51,7 @@ new CrossTabWorker(name, factory, options?)
 | `onmessageerror` | Callback for deserialization errors. |
 | `addEventListener(type, handler)` | `'message'` or `'messageerror'`. |
 | `removeEventListener(type, handler)` | |
-| `terminate()` | Leader only: terminates the underlying Worker and releases the lock. No-op with a warning on followers. |
+| `destroy()` | Leader: terminates the underlying Worker and releases the lock. Follower: closes ports and cancels the queued lock request. Safe to call in either role. |
 | `isLeader` | `boolean` getter — true if this tab currently owns the Worker. |
 
 ---
@@ -81,7 +81,7 @@ Tab A (leader)                    Tab B (follower)
 
 ### No BroadcastChannel, no heartbeat
 
-Leader death detection is handled entirely by the Web Locks API — when a leader tab closes or calls `terminate()`, the browser automatically releases the lock and wakes up the next follower. No periodic heartbeat is needed.
+Leader death detection is handled entirely by the Web Locks API — when a leader tab closes or calls `destroy()`, the browser automatically releases the lock and wakes up the next follower. No periodic heartbeat is needed.
 
 All other coordination — `leader-ready` and `worker-msg` — travels through the broker SharedWorker, which fans messages out to all registered tab ports. No `BroadcastChannel` is used anywhere.
 

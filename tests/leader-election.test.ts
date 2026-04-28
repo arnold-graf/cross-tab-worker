@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  */
 
 describe('leader election', () => {
-  type Role = 'leader' | 'follower' | 'undecided';
+  type Role = 'leader' | 'follower' | 'undecided' | 'closed';
 
   interface TabSim {
     id: string;

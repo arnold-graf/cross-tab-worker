@@ -23,7 +23,7 @@ class FakeWorker {
 }
 
 class FakeMessagePort {
-  onmessage: ((event: { data: unknown; ports: MessagePort[] }) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
   private _peer: FakeMessagePort | null = null;
   private _closed = false;
 
@@ -40,7 +40,7 @@ class FakeMessagePort {
   postMessage(data: unknown, transfer: Transferable[] = []): void {
     if (this._closed || !this._peer) return;
     const ports = transfer.filter((t): t is MessagePort => t instanceof FakeMessagePort);
-    this._peer.onmessage?.({ data, ports });
+    this._peer.onmessage?.({ data, ports } as unknown as MessageEvent);
   }
 }
 
@@ -67,9 +67,9 @@ class FakeBroker {
     (clientPort as unknown as FakeMessagePort).setPeer(brokerPort as unknown as FakeMessagePort);
     (brokerPort as unknown as FakeMessagePort).setPeer(clientPort as unknown as FakeMessagePort);
 
-    brokerPort.onmessage = (ev: { data: unknown; ports: MessagePort[] }) => {
+    brokerPort.onmessage = (ev: MessageEvent) => {
       const msg = ev.data as {
-        type: 'register' | 'declare-leader' | 'forward-port' | 'broadcast';
+        type: 'register' | 'unregister' | 'declare-leader' | 'forward-port' | 'broadcast';
         tabId?: string;
         toTabId?: string;
         fromTabId?: string;
