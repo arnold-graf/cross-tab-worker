@@ -15,7 +15,7 @@ Exactly one tab owns the real Worker at a time (the **leader**). All other tabs 
 ## Usage
 
 ```ts
-import { CrossTabWorker } from '@arni/cross-tab-worker';
+import { CrossTabWorker } from '@arnoldgraf/cross-tab-worker';
 
 const worker = new CrossTabWorker(
   'my-db-worker',                              // stable name — used as the lock key
