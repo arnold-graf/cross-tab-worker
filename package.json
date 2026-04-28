@@ -1,6 +1,6 @@
 {
   "name": "@arnoldgraf/cross-tab-worker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Drop-in coordination wrapper that keeps exactly one Worker alive across all same-origin tabs.",
   "repository": {
     "type": "git",
