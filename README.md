@@ -61,7 +61,7 @@ new CrossTabWorker(name, factory)
 ```text
 Tab A (leader)                    Tab B (follower)
 ┌────────────────────────────┐    ┌────────────────────────────┐
-│  CrossTabWorker             │    │  CrossTabWorker             │
+│  CrossTabWorker            │    │  CrossTabWorker            │
 │  ┌──────────┐              │    │  ┌──────────┐              │
 │  │  Worker  │◄─────────────┼────┼──│ port1    │ postMessage  │
 │  └──────────┘  port2       │    │  └──────────┘  (zero-copy) │
