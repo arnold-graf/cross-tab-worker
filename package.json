@@ -1,0 +1,39 @@
+{
+  "name": "@arni/cross-tab-worker",
+  "version": "0.1.0",
+  "description": "Drop-in coordination wrapper that keeps exactly one Worker alive across all same-origin tabs.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run tests",
+    "test:watch": "vitest tests",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:webkit": "playwright test --project=webkit",
+    "test:e2e:webkit:headed": "playwright test --project=webkit --ui"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": { "optional": true }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "typescript": "^5.4.0",
+    "vite": "^6.4.2",
+    "vitest": "^4.1.0"
+  }
+}
