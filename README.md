@@ -1,6 +1,6 @@
 # cross-tab-worker
 
-A drop-in coordination wrapper that keeps exactly one Worker alive across all same-origin browser tabs.
+A drop-in coordination wrapper that keeps exactly one Worker alive across all same-origin browser tabs. Useful for OPFS access from Workers when using multiple tabs.
 
 Exactly one tab owns the real Worker at a time (the **leader**). All other tabs (**followers**) send messages through a direct `MessagePort` to the leader, which forwards them to the worker. When the leader tab closes, one follower is automatically elected as the new leader. The application sees the same `postMessage` / `onmessage` interface regardless of role.
 
@@ -59,31 +59,27 @@ new CrossTabWorker(name, factory)
 ## Architecture
 
 ```text
-Tab A (leader)                    Tab B (follower)
-┌────────────────────────────┐    ┌────────────────────────────┐
-│  CrossTabWorker            │    │  CrossTabWorker            │
-│  ┌──────────┐              │    │  ┌──────────┐              │
-│  │  Worker  │◄─────────────┼────┼──│ port1    │ postMessage  │
-│  └──────────┘  port2       │    │  └──────────┘  (zero-copy) │
-│       │        (relay)     │    └────────────────────────────┘
-│       │                    │
-│  worker-msg ───────────────┼──► all followers via broker fan-out
-└────────────────────────────┘
-
-         ┌─────────────────────────────┐
-         │  port-broker SharedWorker   │
-         │  - tab registry             │
-         │  - leader tracking          │
-         │  - port forwarding          │
-         │  - coordination fan-out     │
-         └─────────────────────────────┘
+Follower tab (B)                               Leader tab (A)
+┌─────────────────────────────┐                 ┌────────────────────────────┐
+│ CrossTabWorker (follower)   │                 │ CrossTabWorker (leader)    │
+│  app.postMessage(msg, xfer) │                 │  ┌──────────────────────┐  │
+│      │                      │                 │  │ Dedicated Worker     │  │
+│      ▼                      │ direct channel  │  │ (real worker owner)  │  │
+│  MessagePort (port1) ───────┼────────────────►│  └──────────────────────┘  │
+└─────────────────────────────┘  relay msg/xfer │            ▲               │
+                                                │            │ worker events │
+                                                └────────────┼───────────────┘
+                                                             │
+                                                             ▼
+                           ┌─────────────────────────────────────────────────────┐
+                           │ port-broker SharedWorker                            │
+                           │ - tab registry                                      │
+                           │ - current leader tracking                           │
+                           │ - forwards handshake ports (port2)                  │
+                           │ - fans out coordination messages                    │
+                           │   (`leader-ready`, `worker-msg`, `worker-msg-error`)│
+                           └─────────────────────────────────────────────────────┘
 ```
-
-### No BroadcastChannel, no heartbeat
-
-Leader death detection is handled entirely by the Web Locks API — when a leader tab closes or calls `destroy()`, the browser automatically releases the lock and wakes up the next follower. No periodic heartbeat is needed.
-
-All other coordination — `leader-ready` and `worker-msg` — travels through the broker SharedWorker, which fans messages out to all registered tab ports. No `BroadcastChannel` is used anywhere.
 
 ### Data path (zero-copy)
 
@@ -130,6 +126,12 @@ On startup (or after failover), each follower:
 
 All subsequent data flows directly through the `MessageChannel` — the broker is not involved after the handshake.
 
+### No BroadcastChannel, no heartbeat
+
+Leader death detection is handled entirely by the Web Locks API — when a leader tab closes or calls `destroy()`, the browser automatically releases the lock and wakes up the next follower. No periodic heartbeat is needed.
+
+All other coordination — `leader-ready` and `worker-msg` — travels through the broker SharedWorker, which fans messages out to all registered tab ports. No `BroadcastChannel` is used anywhere.
+
 ### Late-joining tabs
 
 A tab that opens after the leader is established receives a `leader-info` message from the broker immediately on registration, so it can connect to the leader right away.
@@ -165,25 +167,3 @@ Throws a clear error on construction if either Web Locks or SharedWorker is unav
 | Worker → specific follower (directed reply) | `e.ports[0]` reply port | Zero-copy |
 
 Use the directed reply pattern for bulk response payloads. Use `self.postMessage(data)` (broadcast) for notifications or results that every tab needs to receive.
-
----
-
-## File structure
-
-```text
-cross-tab-worker/
-  src/
-    CrossTabWorker.ts         # main class — leader/follower state machine
-    port-broker.worker.ts     # SharedWorker — tab registry, port brokering, fan-out
-    protocol.ts               # message type definitions and type guards
-    buffer.ts                 # OutboundBuffer — queues messages during leader absence
-    ids.ts                    # tabId generation
-  tests/
-    leader-election.test.ts
-    failover.test.ts
-    message-relay.test.ts
-    shared-worker-zero-copy.test.ts
-  index.ts
-  package.json
-  tsconfig.json
-```
