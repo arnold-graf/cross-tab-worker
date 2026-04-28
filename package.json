@@ -2,6 +2,10 @@
   "name": "@arnoldgraf/cross-tab-worker",
   "version": "0.1.0",
   "description": "Drop-in coordination wrapper that keeps exactly one Worker alive across all same-origin tabs.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arnold-graf/cross-tab-worker"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
