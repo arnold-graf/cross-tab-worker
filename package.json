@@ -1,6 +1,6 @@
 {
   "name": "@arnoldgraf/cross-tab-worker",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Drop-in coordination wrapper that keeps exactly one Worker alive across all same-origin tabs.",
   "repository": {
     "type": "git",
@@ -24,9 +24,9 @@
     "test": "vitest run tests",
     "test:watch": "vitest tests",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test --project=chromium",
-    "test:e2e:webkit": "playwright test --project=webkit",
-    "test:e2e:webkit:headed": "playwright test --project=webkit --ui"
+    "test:e2e": "npm run build && playwright test --project=chromium",
+    "test:e2e:webkit": "npm run build && playwright test --project=webkit",
+    "test:e2e:webkit:headed": "npm run build && playwright test --project=webkit --ui"
   },
   "peerDependencies": {
     "typescript": ">=5.0"

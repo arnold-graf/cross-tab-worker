@@ -1,4 +1,4 @@
-import { CrossTabWorker } from '../src/CrossTabWorker';
+import { CrossTabWorker } from '../dist/index.js';
 
 type HarnessState = {
   worker: CrossTabWorker;

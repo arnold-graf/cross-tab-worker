@@ -76,7 +76,7 @@ export class CrossTabWorker {
 
     const sharedWorker = new SharedWorker(
       new URL('./port-broker.worker.js', import.meta.url),
-      { type: 'module', name: `cross-tab-worker-broker:${name}` },
+      /* @vite-ignore */ { type: 'module', name: `cross-tab-worker-broker:${name}` },
     );
     this.#brokerPort = sharedWorker.port;
     this.#brokerPort.onmessage = (event: MessageEvent<BrokerMessage>) =>

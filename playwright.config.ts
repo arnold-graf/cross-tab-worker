@@ -20,7 +20,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npx vite --host 127.0.0.1 --port 4173 --strictPort',
+    command: 'npx vite --config e2e/vite.config.ts',
     port: 4173,
     reuseExistingServer: true,
     timeout: 30_000,
