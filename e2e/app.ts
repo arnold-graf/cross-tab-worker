@@ -23,7 +23,7 @@ const harness = {
     const id = `w-${nextId++}`;
     const worker = new CrossTabWorker(name, makeWorker);
     const messages: unknown[] = [];
-    worker.onmessage = (event) => messages.push(event.data);
+    worker.onmessage = (event: MessageEvent) => messages.push(event.data);
     states.set(id, { worker, messages });
     return id;
   },

@@ -57,6 +57,7 @@ export class FakeWorker {
 /** Fake lock state shared across all FakeLockManager instances */
 let _lockHolder = false;
 let _lockQueue: Array<(lock: Lock | null) => Promise<void>> = [];
+type GrantedCallback<T> = (lock: Lock | null) => T | PromiseLike<T>;
 
 export function resetLocks(): void {
   _lockHolder = false;
@@ -70,11 +71,11 @@ export class FakeLockManager implements LockManager {
 
   request<T>(
     name: string,
-    optionsOrCallback: LockOptions | LockGrantedCallback<T>,
-    maybeCallback?: LockGrantedCallback<T>,
+    optionsOrCallback: LockOptions | GrantedCallback<T>,
+    maybeCallback?: GrantedCallback<T>,
   ): Promise<T> {
     const options: LockOptions = typeof optionsOrCallback === 'function' ? {} : optionsOrCallback;
-    const callback: LockGrantedCallback<T> =
+    const callback: GrantedCallback<T> =
       typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback!;
 
     if (options.ifAvailable) {
