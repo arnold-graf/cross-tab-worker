@@ -1,4 +1,5 @@
 import { OutboundBuffer } from './buffer.js';
+import { BROKER_WORKER_SOURCE } from './generated/broker-worker-source.js';
 import { newTabId } from './ids.js';
 import {
   BrokerMessage,
@@ -13,77 +14,6 @@ import {
 type Role = 'leader' | 'follower';
 type EventType = 'message' | 'messageerror';
 type EventHandler = ((event: MessageEvent) => void) | { handleEvent(event: MessageEvent): void };
-
-const BROKER_WORKER_SOURCE = `
-const channels = new Map();
-
-function getChannelState(channelId) {
-  let state = channels.get(channelId);
-  if (!state) {
-    state = { currentLeaderTabId: null, registeredTabPorts: new Map() };
-    channels.set(channelId, state);
-  }
-  return state;
-}
-
-self.onconnect = (connectEvent) => {
-  const tabPort = connectEvent.ports[0];
-  tabPort.start();
-
-  tabPort.onmessage = (event) => {
-    const message = event.data;
-
-    if (message.type === 'register') {
-      const channel = getChannelState(message.channelId);
-      channel.registeredTabPorts.set(message.tabId, tabPort);
-      if (channel.currentLeaderTabId) {
-        tabPort.postMessage({ type: 'leader-info', leaderTabId: channel.currentLeaderTabId });
-      }
-      return;
-    }
-
-    if (message.type === 'unregister') {
-      const channel = getChannelState(message.channelId);
-      channel.registeredTabPorts.delete(message.tabId);
-      if (channel.currentLeaderTabId === message.tabId) {
-        channel.currentLeaderTabId = null;
-      }
-      if (channel.currentLeaderTabId === null && channel.registeredTabPorts.size === 0) {
-        channels.delete(message.channelId);
-      }
-      return;
-    }
-
-    if (message.type === 'declare-leader') {
-      const channel = getChannelState(message.channelId);
-      channel.currentLeaderTabId = message.tabId;
-      return;
-    }
-
-    if (message.type === 'forward-port') {
-      const channel = getChannelState(message.channelId);
-      const portToForward = event.ports[0];
-      if (!portToForward) return;
-      const destinationPort = channel.registeredTabPorts.get(message.toTabId);
-      if (!destinationPort) return;
-      destinationPort.postMessage(
-        { type: 'incoming-port', fromTabId: message.fromTabId },
-        [portToForward],
-      );
-      return;
-    }
-
-    if (message.type === 'broadcast') {
-      const channel = getChannelState(message.channelId);
-      for (const [tabId, port] of channel.registeredTabPorts) {
-        if (tabId !== message.fromTabId) {
-          port.postMessage({ type: 'broadcast', message: message.message });
-        }
-      }
-    }
-  };
-};
-`;
 const BROKER_WORKER_URL = `data:text/javascript;charset=utf-8,${encodeURIComponent(BROKER_WORKER_SOURCE)}`;
 
 export class CrossTabWorker {
