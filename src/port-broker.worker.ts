@@ -23,11 +23,11 @@
  *   { type: 'broadcast',      message }               (coordination fan-out)
  */
 
-interface RegisterMessage      { type: 'register';       tabId: string }
-interface UnregisterMessage    { type: 'unregister';     tabId: string }
-interface DeclareLeaderMessage { type: 'declare-leader'; tabId: string }
-interface ForwardPortMessage   { type: 'forward-port';   toTabId: string; fromTabId: string }
-interface BroadcastMessage     { type: 'broadcast';      fromTabId: string; message: unknown }
+interface RegisterMessage      { type: 'register';       tabId: string; channelId: string }
+interface UnregisterMessage    { type: 'unregister';     tabId: string; channelId: string }
+interface DeclareLeaderMessage { type: 'declare-leader'; tabId: string; channelId: string }
+interface ForwardPortMessage   { type: 'forward-port';   toTabId: string; fromTabId: string; channelId: string }
+interface BroadcastMessage     { type: 'broadcast';      fromTabId: string; channelId: string; message: unknown }
 type IncomingMessage =
   | RegisterMessage
   | UnregisterMessage
@@ -39,8 +39,21 @@ type SharedWorkerScope = typeof globalThis & {
   onconnect: ((event: MessageEvent) => void) | null;
 };
 
-let currentLeaderTabId: string | null = null;
-const registeredTabPorts = new Map<string, MessagePort>();
+type ChannelState = {
+  currentLeaderTabId: string | null;
+  registeredTabPorts: Map<string, MessagePort>;
+};
+
+const channels = new Map<string, ChannelState>();
+
+function getChannelState(channelId: string): ChannelState {
+  let state = channels.get(channelId);
+  if (!state) {
+    state = { currentLeaderTabId: null, registeredTabPorts: new Map() };
+    channels.set(channelId, state);
+  }
+  return state;
+}
 
 (self as unknown as SharedWorkerScope).onconnect = (connectEvent: MessageEvent) => {
   const tabPort = connectEvent.ports[0];
@@ -50,32 +63,39 @@ const registeredTabPorts = new Map<string, MessagePort>();
     const message = event.data;
 
     if (message.type === 'register') {
-      registeredTabPorts.set(message.tabId, tabPort);
+      const channel = getChannelState(message.channelId);
+      channel.registeredTabPorts.set(message.tabId, tabPort);
       // Tell this new tab who the current leader is, if known.
-      if (currentLeaderTabId) {
-        tabPort.postMessage({ type: 'leader-info', leaderTabId: currentLeaderTabId });
+      if (channel.currentLeaderTabId) {
+        tabPort.postMessage({ type: 'leader-info', leaderTabId: channel.currentLeaderTabId });
       }
       return;
     }
 
     if (message.type === 'unregister') {
-      registeredTabPorts.delete(message.tabId);
+      const channel = getChannelState(message.channelId);
+      channel.registeredTabPorts.delete(message.tabId);
       // Clear the leader record so the next tab to register doesn't get a stale leader-info.
-      if (currentLeaderTabId === message.tabId) {
-        currentLeaderTabId = null;
+      if (channel.currentLeaderTabId === message.tabId) {
+        channel.currentLeaderTabId = null;
+      }
+      if (channel.currentLeaderTabId === null && channel.registeredTabPorts.size === 0) {
+        channels.delete(message.channelId);
       }
       return;
     }
 
     if (message.type === 'declare-leader') {
-      currentLeaderTabId = message.tabId;
+      const channel = getChannelState(message.channelId);
+      channel.currentLeaderTabId = message.tabId;
       return;
     }
 
     if (message.type === 'forward-port') {
+      const channel = getChannelState(message.channelId);
       const portToForward = event.ports[0];
       if (!portToForward) return;
-      const destinationPort = registeredTabPorts.get(message.toTabId);
+      const destinationPort = channel.registeredTabPorts.get(message.toTabId);
       if (!destinationPort) return;
       destinationPort.postMessage(
         { type: 'incoming-port', fromTabId: message.fromTabId },
@@ -85,9 +105,10 @@ const registeredTabPorts = new Map<string, MessagePort>();
     }
 
     if (message.type === 'broadcast') {
+      const channel = getChannelState(message.channelId);
       // Fan out to every tab except the sender.
       // Posting to a closed tab's port silently fails — no cleanup needed.
-      for (const [tabId, port] of registeredTabPorts) {
+      for (const [tabId, port] of channel.registeredTabPorts) {
         if (tabId !== message.fromTabId) {
           port.postMessage({ type: 'broadcast', message: message.message });
         }

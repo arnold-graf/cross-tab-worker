@@ -26,6 +26,7 @@ export class CrossTabWorker {
 
   readonly #tabId: string;
   readonly #lockName: string;
+  readonly #channelId: string;
 
   // ── Runtime state ─────────────────────────────────────────────────────────────
 
@@ -73,16 +74,17 @@ export class CrossTabWorker {
     this.#factory = factory;
     this.#tabId = newTabId();
     this.#lockName = `cross-tab-worker:${name}`;
+    this.#channelId = this.#lockName;
 
     const sharedWorker = new SharedWorker(
       new URL('./port-broker.worker.js', import.meta.url),
-      /* @vite-ignore */ { type: 'module', name: `cross-tab-worker-broker:${name}` },
+      { type: 'module', name: 'cross-tab-worker-broker' },
     );
     this.#brokerPort = sharedWorker.port;
     this.#brokerPort.onmessage = (event: MessageEvent<BrokerMessage>) =>
       this.#handleBrokerMessage(event);
     this.#brokerPort.start();
-    this.#brokerPort.postMessage({ type: 'register', tabId: this.#tabId });
+    this.#brokerPort.postMessage({ type: 'register', tabId: this.#tabId, channelId: this.#channelId });
 
     globalThis.addEventListener('beforeunload', this.#unloadHandler);
 
@@ -145,7 +147,7 @@ export class CrossTabWorker {
     globalThis.removeEventListener('beforeunload', this.#unloadHandler);
 
     // Tell the broker to remove this tab from its registry.
-    this.#brokerPort.postMessage({ type: 'unregister', tabId: this.#tabId });
+    this.#brokerPort.postMessage({ type: 'unregister', tabId: this.#tabId, channelId: this.#channelId });
     this.#brokerPort.close();
 
     this.#leaderPort?.close();
@@ -248,7 +250,7 @@ export class CrossTabWorker {
     };
 
     this.#brokerPort.postMessage(
-      { type: 'forward-port', toTabId: leaderTabId, fromTabId: this.#tabId },
+      { type: 'forward-port', toTabId: leaderTabId, fromTabId: this.#tabId, channelId: this.#channelId },
       [directChannel.port2],
     );
 
@@ -306,7 +308,7 @@ export class CrossTabWorker {
     this.#leaderPort?.close();
     this.#leaderPort = null;
 
-    this.#brokerPort.postMessage({ type: 'declare-leader', tabId: this.#tabId });
+    this.#brokerPort.postMessage({ type: 'declare-leader', tabId: this.#tabId, channelId: this.#channelId });
 
     this.#worker = this.#factory();
     this.#worker.onmessage = (event: MessageEvent) => {
@@ -332,7 +334,12 @@ export class CrossTabWorker {
   }
 
   #broadcastCoordinationMessage(message: CoordinationMessage): void {
-    this.#brokerPort.postMessage({ type: 'broadcast', fromTabId: this.#tabId, message });
+    this.#brokerPort.postMessage({
+      type: 'broadcast',
+      fromTabId: this.#tabId,
+      channelId: this.#channelId,
+      message,
+    });
   }
 
   // ── Follower role ─────────────────────────────────────────────────────────────
