@@ -8,7 +8,7 @@ Exactly one tab owns the real Worker at a time (the **leader**). All other tabs 
 
 ## Why not SharedWorker?
 
-`SharedWorker` doesn't support `FileSystemSyncAccessHandle` — the synchronous OPFS API that high-performance SQLite/WASM VFS implementations require. This library achieves the same multi-tab sharing using a regular dedicated Worker owned by one tab, with coordination through Web Locks and a tiny broker SharedWorker.
+`SharedWorker` doesn't support `FileSystemSyncAccessHandle` — the synchronous OPFS API that high-performance SQLite/WASM VFS implementations require. This library achieves the same multi-tab sharing using a regular dedicated Worker owned by one tab, with coordination through Web Locks and a tiny broker SharedWorker. The approach is generally informed and inspired by this [discussion on wa-sqlite](https://github.com/rhashimoto/wa-sqlite/discussions/81).
 
 ---
 
