@@ -4,6 +4,11 @@ A drop-in coordination wrapper that keeps exactly one Worker alive across all sa
 
 Exactly one tab owns the real Worker at a time (the **leader**). All other tabs (**followers**) send messages through a direct `MessagePort` to the leader, which forwards them to the worker. When the leader tab closes, one follower is automatically elected as the new leader. The application sees the same `postMessage` / `onmessage` interface regardless of role.
 
+```
+npm install @arnoldgraf/cross-tab-worker --save
+```
+
+
 ---
 
 ## Why not SharedWorker?
