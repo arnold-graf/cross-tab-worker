@@ -8,7 +8,6 @@ Exactly one tab owns the real Worker at a time (the **leader**). All other tabs 
 npm install @arnoldgraf/cross-tab-worker --save
 ```
 
-
 ---
 
 ## Why not SharedWorker?
@@ -29,7 +28,8 @@ const worker = new CrossTabWorker(
 
 worker.onmessage = (e) => console.log('from worker:', e.data);
 
-// Zero-copy if this tab is the leader; relayed through a direct MessagePort if follower.
+// Direct transfer if this tab is the leader; relayed through a direct 
+// MessagePort if follower. Zero-copy in both cases.
 const buffer = new ArrayBuffer(4096);
 worker.postMessage({ op: 'write', buf: buffer }, [buffer]);
 ```
@@ -42,22 +42,26 @@ worker.postMessage({ op: 'write', buf: buffer }, [buffer]);
 new CrossTabWorker(name, factory)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Unique identifier for this worker type. Used as the Web Lock key and SharedWorker name. Must be stable across page loads. |
-| `factory` | `() => Worker` | Called only in the leader tab to instantiate the real Worker. |
+
+| Parameter | Type           | Description                                                                                                               |
+| --------- | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `name`    | `string`       | Unique identifier for this worker type. Used as the Web Lock key and SharedWorker name. Must be stable across page loads. |
+| `factory` | `() => Worker` | Called only in the leader tab to instantiate the real Worker.                                                             |
+
 
 ### Instance
 
-| Member | Description |
-| --- | --- |
-| `postMessage(message, transfer?)` | Send a message to the worker. Zero-copy in the leader; transferred via a direct `MessagePort` in followers. |
-| `onmessage` | Callback for messages from the worker. |
-| `onmessageerror` | Callback for deserialization errors. |
-| `addEventListener(type, handler)` | `'message'` or `'messageerror'`. |
-| `removeEventListener(type, handler)` | |
-| `destroy()` | Leader: terminates the underlying Worker and releases the lock. Follower: closes ports and cancels the queued lock request. Safe to call in either role. |
-| `isLeader` | `boolean` getter — true if this tab currently owns the Worker. |
+
+| Member                               | Description                                                                                                                                              |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postMessage(message, transfer?)`    | Send a message to the worker. Zero-copy in the leader; transferred via a direct `MessagePort` in followers.                                              |
+| `onmessage`                          | Callback for messages from the worker.                                                                                                                   |
+| `onmessageerror`                     | Callback for deserialization errors.                                                                                                                     |
+| `addEventListener(type, handler)`    | `'message'` or `'messageerror'`.                                                                                                                         |
+| `removeEventListener(type, handler)` |                                                                                                                                                          |
+| `destroy()`                          | Leader: terminates the underlying Worker and releases the lock. Follower: closes ports and cancels the queued lock request. Safe to call in either role. |
+| `isLeader`                           | `boolean` getter — true if this tab currently owns the Worker.                                                                                           |
+
 
 ---
 
@@ -153,11 +157,13 @@ A tab that opens after the leader is established receives a `leader-info` messag
 
 ## Requirements
 
-| API | Required |
-| --- | --- |
-| Web Locks (`navigator.locks`) | ✅ |
-| SharedWorker | ✅ |
-| MessageChannel / MessagePort | ✅ |
+
+| API                           | Required |
+| ----------------------------- | -------- |
+| Web Locks (`navigator.locks`) | ✅        |
+| SharedWorker                  | ✅        |
+| MessageChannel / MessagePort  | ✅        |
+
 
 Throws a clear error on construction if either Web Locks or SharedWorker is unavailable.
 
@@ -165,10 +171,12 @@ Throws a clear error on construction if either Web Locks or SharedWorker is unav
 
 ## Response delivery modes
 
-| Scenario | Path | Copy? |
-| --- | --- | --- |
-| Worker → leader tab | Direct `onmessage` | Zero-copy (no transfer needed) |
-| Worker → all tabs (broadcast) | Broker fan-out via `worker-msg` | Structured clone |
-| Worker → specific follower (directed reply) | `e.ports[0]` reply port | Zero-copy |
+
+| Scenario                                    | Path                            | Copy?                          |
+| ------------------------------------------- | ------------------------------- | ------------------------------ |
+| Worker → leader tab                         | Direct `onmessage`              | Zero-copy (no transfer needed) |
+| Worker → all tabs (broadcast)               | Broker fan-out via `worker-msg` | Structured clone               |
+| Worker → specific follower (directed reply) | `e.ports[0]` reply port         | Zero-copy                      |
+
 
 Use the directed reply pattern for bulk response payloads. Use `self.postMessage(data)` (broadcast) for notifications or results that every tab needs to receive.
